@@ -5,7 +5,7 @@
 HttpServer::HttpServer()
 {
     _server = std::make_unique<hv::HttpServer>();
-    route::RegisterResources(_router);
+    route::RegisterResources(_router, _users);
     _server->registerHttpService(&_router);
 }
 

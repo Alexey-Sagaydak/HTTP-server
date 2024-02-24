@@ -22,6 +22,7 @@ private:
 
     std::unique_ptr<hv::HttpServer> _server;
     HttpService _router;
+    std::unordered_map<std::string, nlohmann::json> _users;
 };
 
 #endif
