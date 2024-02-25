@@ -23,6 +23,16 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
         std::string userId = request["userId"];
         nlohmann::json userData = request["userData"];
 
+        // Проверяем, существует ли пользователь с таким идентификатором
+        auto it = users.find(userId);
+        if (it != users.end())
+        {
+            response["error"] = "User already exists";
+            resp->SetBody(response.dump());
+            resp->content_type = APPLICATION_JSON;
+            return 400;
+        }
+
         // Добавляем пользователя в список
         users[userId] = userData;
 
