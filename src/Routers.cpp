@@ -1,15 +1,27 @@
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <mutex>
 #include "Routers.hpp"
+
+std::mutex usersMutex;
 
 void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::string, nlohmann::json> &users)
 {
     router.POST("/user", [&users](HttpRequest *req, HttpResponse *resp)
     {
+        std::lock_guard<std::mutex> lock(usersMutex);
+
         nlohmann::json request;
         nlohmann::json response;
+        std::string userId;
+        nlohmann::json userData;
 
         try
         {
             request = nlohmann::json::parse(req->body);
+            // Получаем данные пользователя из запроса
+            userData = request["userData"];
         }
         catch(const std::exception& e)
         {
@@ -19,23 +31,14 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
             return 400;
         }
 
-        // Получаем данные пользователя из запроса
-        std::string userId = request["userId"];
-        nlohmann::json userData = request["userData"];
-
-        // Проверяем, существует ли пользователь с таким идентификатором
-        auto it = users.find(userId);
-        if (it != users.end())
-        {
-            response["error"] = "User already exists";
-            resp->SetBody(response.dump());
-            resp->content_type = APPLICATION_JSON;
-            return 400;
-        }
+        boost::uuids::uuid uuid = boost::uuids::random_generator()();
+        userId = boost::uuids::to_string(uuid);
 
         // Добавляем пользователя в список
         users[userId] = userData;
 
+        response["userId"] = userId; // Отправляем новый id в ответе
+        response["userData"] = userData; // Возвращаем всю информацию о пользователе
         response["msg"] = "User added successfully";
         resp->SetBody(response.dump());
         resp->content_type = APPLICATION_JSON;
@@ -45,6 +48,8 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
 
     router.GET("/user/{userId}", [&users](HttpRequest *req, HttpResponse *resp)
     {
+        std::lock_guard<std::mutex> lock(usersMutex);
+
         std::string userId = req->query_params["userId"];
 
         // Проверяем, есть ли такой пользователь в списке
@@ -68,6 +73,8 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
 
     router.GET("/users", [&users](HttpRequest *req, HttpResponse *resp)
     {
+        std::lock_guard<std::mutex> lock(usersMutex);
+
         nlohmann::json response;
         for (const auto &user : users)
         {
@@ -82,6 +89,8 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
 
     router.Delete("/user/{userId}", [&users](HttpRequest *req, HttpResponse *resp)
     {
+        std::lock_guard<std::mutex> lock(usersMutex);
+
         std::string userId = req->query_params["userId"];
 
         // Проверяем, есть ли такой пользователь в списке

@@ -17,7 +17,7 @@ add_users() {
     local end=$2
 
     for ((i=start; i<=end; i++)); do
-        user_data="{\"userId\": \"user${i}\", \"userData\": {\"username\": \"user${i}\", \"password\": \"password${i}\"}}"
+        user_data="{\"userData\": {\"username\": \"user${i}\", \"password\": \"password${i}\"}}"
         curl -X POST -H "Content-Type: application/json" -d "${user_data}" "http://${ip}/user" &
     done
 
