@@ -3,7 +3,6 @@
 
 #include "HttpServer.h"
 #include "HttpService.h"
-
 #include "Routers.hpp"
 
 class HttpServer final
@@ -19,10 +18,9 @@ public:
     void Start(int port);
 
 private:
-
     std::unique_ptr<hv::HttpServer> _server;
     HttpService _router;
-    std::unordered_map<std::string, nlohmann::json> _users;
+    std::unordered_map<std::string, User> _users;
 };
 
 #endif
