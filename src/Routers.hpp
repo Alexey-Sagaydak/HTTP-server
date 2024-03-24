@@ -2,6 +2,7 @@
 #define _ROUTERS_HPP_
 
 #include "HttpService.h"
+#include "HashUtils.hpp"
 #include <unordered_map>
 
 struct User {

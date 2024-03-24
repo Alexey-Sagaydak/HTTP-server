@@ -14,14 +14,14 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
 
         nlohmann::json request;
         nlohmann::json response;
+        HashUtils hashUtils;
         User newUser;
 
         try
         {
             request = nlohmann::json::parse(req->body);
-            // Получаем данные пользователя из запроса и записываем в структуру User
             newUser.username = request["username"];
-            newUser.password = request["password"];
+            hashUtils.computeHash(request["password"], newUser.password);
         }
         catch(const std::exception& e)
         {
