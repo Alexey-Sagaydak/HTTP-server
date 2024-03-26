@@ -75,6 +75,7 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
         else
         {
             resp->SetBody("User not found");
+            resp->status_code = http_status::HTTP_STATUS_NOT_FOUND;
             resp->content_type = TEXT_PLAIN;
 
             return 404;
@@ -106,12 +107,22 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
     router.Delete("/user/{userId}", [&users](HttpRequest *req, HttpResponse *resp)
     {
         std::lock_guard<std::mutex> lock(usersMutex);
-
-        User currentUser = *authenticate(req, resp, users);
-
-        //std::cout << currentUser.isAdmin << std::endl << currentUser.userId;
-
+        bool isAuth;
         std::string userId = req->query_params["userId"];
+
+        User currentUser;
+        authenticate(req, resp, users, &isAuth, &currentUser);
+
+        if (!isAuth) {
+            resp->status_code = http_status::HTTP_STATUS_UNAUTHORIZED;
+            resp->SetBody("User is not authorized");
+            return 401;
+        }
+
+        if (!currentUser.isAdmin && currentUser.userId != userId){
+            resp->status_code = http_status::HTTP_STATUS_FORBIDDEN;
+            return 403;
+        }
 
         // Проверяем, есть ли такой пользователь в списке
         auto it = users.find(userId);
@@ -119,8 +130,9 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
         {
             users.erase(it);
 
-            resp->SetBody("");
+            resp->SetBody("Done");
             resp->content_type = TEXT_PLAIN;
+            resp->status_code = http_status::HTTP_STATUS_OK;
 
             return 200;
         }
@@ -128,13 +140,16 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
         {
             resp->SetBody("User not found");
             resp->content_type = TEXT_PLAIN;
+            resp->status_code = http_status::HTTP_STATUS_NOT_FOUND;
 
             return 404;
         }
     });
 }
 
-User* route::authenticate(const HttpRequest* req, HttpResponse* resp, std::unordered_map<std::string, User> &users) {
+void route::authenticate(const HttpRequest* req, HttpResponse* resp, std::unordered_map<std::string, User> &users, bool* isAuth, User* currentUser) {
+    HashUtils hashUtils;
+    std::string hashedPassword;
     auto authHeader = req->headers.find("Authorization");
 
     if (authHeader == req->headers.end()) {
@@ -142,7 +157,8 @@ User* route::authenticate(const HttpRequest* req, HttpResponse* resp, std::unord
         resp->SetHeader("WWW-Authenticate", "Basic realm=\"Authentication Required\"");
         resp->SetBody("Unauthorized access");
         resp->content_type = TEXT_PLAIN;
-        return nullptr;
+        *isAuth = false;
+        return;
     }
 
     std::string authStr = authHeader->second;
@@ -150,7 +166,8 @@ User* route::authenticate(const HttpRequest* req, HttpResponse* resp, std::unord
         resp->status_code = HTTP_STATUS_UNAUTHORIZED;
         resp->SetBody("Invalid Authorization header");
         resp->content_type = TEXT_PLAIN;
-        return nullptr;
+        *isAuth = false;
+        return;
     }
 
     authStr = authStr.substr(6); // Remove "Basic " prefix
@@ -162,20 +179,21 @@ User* route::authenticate(const HttpRequest* req, HttpResponse* resp, std::unord
     std::getline(iss, password);
 
     auto userIt = std::find_if(users.begin(), users.end(), [&](const auto& pair) {
-    return pair.second.username == username;
+        return pair.second.username == username;
     });
 
-    if (userIt == users.end() || userIt->second.password != password) {
+    hashUtils.computeHash(password, hashedPassword);
+    if (userIt == users.end() || userIt->second.password != hashedPassword) {
         resp->status_code = HTTP_STATUS_UNAUTHORIZED;
         resp->SetHeader("WWW-Authenticate", "Basic realm=\"Authentication Required\"");
         resp->SetBody("Unauthorized access");
         resp->content_type = TEXT_PLAIN;
-        return nullptr;
+        *isAuth = false;
+        return;
     }
 
-    User& currentUser = userIt->second;
-
-    return &currentUser;
+    *currentUser = userIt->second;
+    *isAuth = true;
 }
 
 std::string route::base64_decode(const std::string& in) {

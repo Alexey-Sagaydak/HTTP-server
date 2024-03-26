@@ -42,6 +42,9 @@ void printUser(const std::string& jsonStr);
 void printUser(json jsonData);
 void setTextColor(TextColor color);
 void getAllUsersInfo(hv::HttpClient& httpClient);
+void getUserById(hv::HttpClient& httpClient);
+void deleteUserById(hv::HttpClient& httpClient);
+std::string getBasicAuthHeader();
 std::string base64_encode(const std::string &input);
 
 int main() {
@@ -62,6 +65,14 @@ int main() {
                 getAllUsersInfo(httpClient);
                 break;
             case 3:
+                getUserById(httpClient);
+                break;
+            case 4:
+                deleteUserById(httpClient);
+                break;
+            case 5:
+                break;
+            case 6:
                 std::cout << "Exiting..." << std::endl;
                 break;
             default:
@@ -70,9 +81,52 @@ int main() {
                 setTextColor(TextColor::WHITE);
                 break;
         }
-    } while (choice != 3);
+    } while (choice != 5);
 
     return 0;
+}
+
+void deleteUserById(hv::HttpClient& httpClient) {
+    std::string id;
+    HttpRequest req;
+    req.method = HTTP_DELETE;
+
+    std::cout << "Enter user ID: ";
+    std::cin >> id;
+
+    req.url = "/user/" + id;
+    req.SetHeader("Authorization", getBasicAuthHeader());
+
+    HttpResponse resp;
+    int ret = httpClient.send(&req, &resp);
+
+    if (ret != 0) {
+        setTextColor(TextColor::RED);
+        std::cerr << "Failed to delete user. Error: " << http_client_strerror(ret) << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
+
+    if (resp.status_code == http_status::HTTP_STATUS_FORBIDDEN){
+        setTextColor(TextColor::RED);
+        std::cerr << "Access denied." << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
+
+    if (resp.status_code == http_status::HTTP_STATUS_UNAUTHORIZED){
+        setTextColor(TextColor::RED);
+        std::cerr << "Unauthorized." << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
+
+    if (resp.status_code == http_status::HTTP_STATUS_OK){
+        setTextColor(TextColor::GREEN);
+        std::cerr << "Done." << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
 }
 
 void printMenu() {
@@ -80,7 +134,10 @@ void printMenu() {
     std::cout << "==== Menu ====" << std::endl;
     std::cout << "1. Add new user" << std::endl;
     std::cout << "2. Get all users" << std::endl;
-    std::cout << "3. Exit" << std::endl;
+    std::cout << "3. Get user by ID" << std::endl;
+    std::cout << "4. Delete user by ID" << std::endl;
+    std::cout << "5. Edit user by ID" << std::endl;
+    std::cout << "6. Exit" << std::endl;
     setTextColor(TextColor::WHITE);
     std::cout << "Enter your choice: ";
 }
@@ -110,6 +167,44 @@ void getAllUsersInfo(hv::HttpClient& httpClient) {
             printUser(userData);
             std::cout << std::endl;
         }
+    } catch (const std::exception& e) {
+        setTextColor(TextColor::RED);
+        std::cerr << "Error parsing JSON response: " << e.what() << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
+}
+
+void getUserById(hv::HttpClient& httpClient){
+    std::string id;
+    HttpRequest req;
+    req.method = HTTP_GET;
+
+    std::cout << "Enter user ID: ";
+    std::cin >> id;
+
+    req.url = "/user/" + id;
+
+    HttpResponse resp;
+    int ret = httpClient.send(&req, &resp);
+
+    if (ret != 0) {
+        setTextColor(TextColor::RED);
+        std::cerr << "Failed to get users information. Error: " << http_client_strerror(ret) << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
+
+    if (resp.status_code == http_status::HTTP_STATUS_NOT_FOUND){
+        setTextColor(TextColor::RED);
+        std::cerr << "User wasn't found." << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
+
+    try {
+        json responseData = json::parse(resp.body);
+        printUser(responseData);
     } catch (const std::exception& e) {
         setTextColor(TextColor::RED);
         std::cerr << "Error parsing JSON response: " << e.what() << std::endl;
@@ -176,9 +271,9 @@ void printUser(json jsonData) {
         setTextColor(TextColor::GRAY);
         
         std::cout << "ID: " << jsonData["userId"] << std::endl;
-        std::cout << "  Username: " << jsonData["username"] << std::endl;
-        std::cout << "  Password: " << jsonData["password"] << std::endl;
-        std::cout << "  Is Admin: " << (jsonData["isAdmin"] ? "Yes" : "No") << std::endl;
+        std::cout << "Username: " << jsonData["username"] << std::endl;
+        std::cout << "Password: " << jsonData["password"] << std::endl;
+        std::cout << "Is Admin: " << (jsonData["isAdmin"] ? "Yes" : "No") << std::endl;
 
         setTextColor(TextColor::WHITE);
     } catch (const std::exception& e) {
