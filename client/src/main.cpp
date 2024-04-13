@@ -44,6 +44,7 @@ void setTextColor(TextColor color);
 void getAllUsersInfo(hv::HttpClient& httpClient);
 void getUserById(hv::HttpClient& httpClient);
 void deleteUserById(hv::HttpClient& httpClient);
+void editUserById(hv::HttpClient& httpClient);
 std::string getBasicAuthHeader();
 std::string base64_encode(const std::string &input);
 
@@ -71,6 +72,7 @@ int main() {
                 deleteUserById(httpClient);
                 break;
             case 5:
+                editUserById(httpClient);
                 break;
             case 6:
                 std::cout << "Exiting..." << std::endl;
@@ -81,7 +83,7 @@ int main() {
                 setTextColor(TextColor::WHITE);
                 break;
         }
-    } while (choice != 5);
+    } while (choice != 6);
 
     return 0;
 }
@@ -96,6 +98,64 @@ void deleteUserById(hv::HttpClient& httpClient) {
 
     req.url = "/user/" + id;
     req.SetHeader("Authorization", getBasicAuthHeader());
+
+    HttpResponse resp;
+    int ret = httpClient.send(&req, &resp);
+
+    if (ret != 0) {
+        setTextColor(TextColor::RED);
+        std::cerr << "Failed to delete user. Error: " << http_client_strerror(ret) << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
+
+    if (resp.status_code == http_status::HTTP_STATUS_FORBIDDEN){
+        setTextColor(TextColor::RED);
+        std::cerr << "Access denied." << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
+
+    if (resp.status_code == http_status::HTTP_STATUS_UNAUTHORIZED){
+        setTextColor(TextColor::RED);
+        std::cerr << "Unauthorized." << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
+
+    if (resp.status_code == http_status::HTTP_STATUS_OK){
+        setTextColor(TextColor::GREEN);
+        std::cerr << "Done." << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
+}
+
+void editUserById(hv::HttpClient& httpClient){
+    std::string id, username, password;
+    HttpRequest req;
+    bool isAdmin;
+    req.method = HTTP_PUT;
+
+    std::cout << "Enter user ID: ";
+    std::cin >> id;
+
+    std::cout << "Enter new username: ";
+    std::cin >> username;
+    std::cout << "Enter new password: ";
+    std::cin >> password;
+    std::cout << "Is admin? (1 for yes, 0 for no): ";
+    std::cin >> isAdmin;
+
+    nlohmann::json requestData;
+    requestData["username"] = username;
+    requestData["password"] = password;
+    requestData["isAdmin"] = isAdmin;
+
+    req.url = "/user/" + id;
+    req.SetHeader("Authorization", getBasicAuthHeader());
+    req.content_type = APPLICATION_JSON;
+    req.body = requestData.dump();
 
     HttpResponse resp;
     int ret = httpClient.send(&req, &resp);

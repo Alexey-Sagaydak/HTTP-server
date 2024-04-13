@@ -145,6 +145,53 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
             return 404;
         }
     });
+
+    router.PUT("/user/{userId}", [&users](HttpRequest *req, HttpResponse *resp)
+    {
+        std::lock_guard<std::mutex> lock(usersMutex);
+
+        bool isAuth;
+        std::string userId = req->query_params["userId"];
+
+        User currentUser;
+        authenticate(req, resp, users, &isAuth, &currentUser);
+
+        if (!isAuth) {
+            resp->status_code = http_status::HTTP_STATUS_UNAUTHORIZED;
+            resp->SetBody("User is not authorized");
+            return 401;
+        }
+
+        if (!currentUser.isAdmin && currentUser.userId != userId){
+            resp->status_code = http_status::HTTP_STATUS_FORBIDDEN;
+            return 403;
+        }
+
+        // Проверяем, существует ли пользователь с данным ID
+        auto it = users.find(userId);
+        if (it != users.end())
+        {
+            // Заменяем данные пользователя новыми данными из запроса
+            nlohmann::json requestData = nlohmann::json::parse(req->body);
+            it->second.username = requestData["username"];
+            it->second.password = requestData["password"];
+            it->second.isAdmin = requestData["isAdmin"];
+
+            resp->SetBody("User data updated successfully");
+            resp->status_code = http_status::HTTP_STATUS_OK;
+            resp->content_type = TEXT_PLAIN;
+
+            return 200;
+        }
+        else
+        {
+            resp->SetBody("User not found");
+            resp->status_code = http_status::HTTP_STATUS_NOT_FOUND;
+            resp->content_type = TEXT_PLAIN;
+
+            return 404;
+        }
+    });
 }
 
 void route::authenticate(const HttpRequest* req, HttpResponse* resp, std::unordered_map<std::string, User> &users, bool* isAuth, User* currentUser) {
