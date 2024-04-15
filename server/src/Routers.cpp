@@ -149,9 +149,11 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
     router.PUT("/user/{userId}", [&users](HttpRequest *req, HttpResponse *resp)
     {
         std::lock_guard<std::mutex> lock(usersMutex);
+        HashUtils hashUtils;
 
         bool isAuth;
         std::string userId = req->query_params["userId"];
+        std::string hashedPassword;
 
         User currentUser;
         authenticate(req, resp, users, &isAuth, &currentUser);
@@ -174,7 +176,8 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
             // Заменяем данные пользователя новыми данными из запроса
             nlohmann::json requestData = nlohmann::json::parse(req->body);
             it->second.username = requestData["username"];
-            it->second.password = requestData["password"];
+            hashUtils.computeHash(requestData["password"], hashedPassword);
+            it->second.password = hashedPassword;
             it->second.isAdmin = requestData["isAdmin"];
 
             resp->SetBody("User data updated successfully");
