@@ -43,8 +43,7 @@ jobs:
     
     - name: Test 4. Test server
       run: |
-        libhv-http
-        SERVER_PID=$!
+        libhv-http & SERVER_PID=$!
         
         sleep 5
         
