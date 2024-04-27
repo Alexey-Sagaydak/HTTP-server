@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
 
-  build:
+  build-test:
     runs-on: ubuntu-latest
     
     steps:
@@ -40,3 +40,22 @@ jobs:
       
     - name: Test 3. Install server
       run: sudo dpkg -i ./server/http-server.deb
+    
+    - name: Test 4. Test server
+      run: |
+        libhv-http
+        SERVER_PID=$!
+        
+        sleep 5
+        
+        curl --silent --head http://localhost:7777 | grep "HTTP/1.1 200 OK" > /dev/null
+        
+        if [ "$?" -eq 0 ]; then
+          echo "Сервер успешно запущен"
+          kill $SERVER_PID
+          exit 0
+        else
+          echo "Ошибка при запуске сервера"
+          kill $SERVER_PID
+          exit 1
+        fi
