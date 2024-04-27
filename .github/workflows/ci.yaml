@@ -17,10 +17,10 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: client
-          path: ./http-client.deb
+          path: ./client/http-client.deb
       - run: sh create_debpkg_server.sh
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: server
-          path: ./http-server.deb
+          path: ./server/http-server.deb

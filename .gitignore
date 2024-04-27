@@ -1,4 +1,8 @@
 build/
-client/cuild/
+client/build/
 server/build/
+server/http-server.deb
+server/deb_pakage/
+client/http-client.deb
+client/deb_pakage/
 build_/
