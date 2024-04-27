@@ -11,3 +11,16 @@ jobs:
       - run: sudo apt-get install g++ make cmake
       - run: sudo apt-get install -y libboost-all-dev
       - run: cd client && mkdir -p build && cd build && cmake .. && make && cd ../../server && mkdir -p build && cd build && cmake .. && make
+      - run: cd ../..
+      - run: sh create_debpkg_client.sh
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: client
+          path: ./http-client.deb
+      - run: sh create_debpkg_server.sh
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: server
+          path: ./http-server.deb
