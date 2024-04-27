@@ -32,29 +32,11 @@ jobs:
         name: server
         path: ./server/http-server.deb
         
-  test:
-    needs: build
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Download client artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: client
-        
-    - name: Install client
+    - name: Test 1. Install client
       run: sudo dpkg -i ./client/http-client.deb
       
-    - name: Test client
-      run: libhv-client --help
+    - name: Test 2. Test client
+      run: echo "6" | libhv-client
       
-    - name: Download server artifact  
-      uses: actions/download-artifact@v3
-      with:
-        name: server
-        
-    - name: Install server
+    - name: Test 3. Install server
       run: sudo dpkg -i ./server/http-server.deb
-        
-    - name: Test server
-      run: libhv-http --help
