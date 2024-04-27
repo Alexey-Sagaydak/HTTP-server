@@ -14,13 +14,13 @@ jobs:
       - run: cd ../..
       - run: sh create_debpkg_client.sh
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: client
           path: ./client/http-client.deb
       - run: sh create_debpkg_server.sh
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: server
           path: ./server/http-server.deb
