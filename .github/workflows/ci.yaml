@@ -24,7 +24,8 @@ jobs:
         with:
           name: server
           path: ./server/http-server.deb
-      - name: Test 1. Smoke-test that verifies the success of client startup
-      - run: ./client/build/libhv-client
-      - name: Test 2. Smoke-test that verifies the success of server startup
-      - run: ./server/build/libhv-http
+  tests:
+    - name: Test 1. Smoke-test that verifies the success of client startup
+    - run: ./client/build/libhv-client
+    - name: Test 2. Smoke-test that verifies the success of server startup
+    - run: ./server/build/libhv-http
