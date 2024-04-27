@@ -10,4 +10,4 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get install g++ make cmake
       - run: sudo apt-get install -y libboost-all-dev
-      - run: cd client && mkdir -p build && cd build && cmake .. && make && cd ../../server && mkdir -p build && cd build
+      - run: cd client && mkdir -p build && cd build && cmake .. && make && cd ../../server && mkdir -p build && cd build && cmake .. && make
