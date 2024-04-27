@@ -1,38 +1,45 @@
 name: CI
 run-name: ${{ github.actor }} run CI
 on: [push]
+
 jobs:
+
   build:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v3
-      - run: sudo apt-get update
-      - run: sudo apt-get install g++ make cmake
-      - run: sudo apt-get install -y libboost-all-dev
-      - run: cd client && mkdir -p build && cd build && cmake .. && make && cd ../../server && mkdir -p build && cd build && cmake .. && make
-      - run: cd ../..
-      - run: sh create_debpkg_client.sh
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: client
-          path: ./client/http-client.deb
-      - run: sh create_debpkg_server.sh
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: server
-          path: ./server/http-server.deb
-  tests:
+    - name: Check out repository code
+      uses: actions/checkout@v3
+      
+    - run: sudo apt-get update
+    - run: sudo apt-get install g++ make cmake
+    - run: sudo apt-get install -y libboost-all-dev
+    
+    - run: cd client && mkdir -p build && cd build && cmake .. && make && cd ../../server && mkdir -p build && cd build && cmake .. && make
+    - run: cd ../..
+    
+    - run: sh create_debpkg_client.sh
+    - name: Upload client artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: client
+        path: ./client/http-client.deb
+        
+    - run: sh create_debpkg_server.sh
+    - name: Upload server artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: server
+        path: ./server/http-server.deb
+        
     - name: Install client
       run: sudo dpkg -i ./client/http-client.deb
       
     - name: Test client
-      run: libhv-client
+      run: libhv-client --help
       
     - name: Install server
       run: sudo dpkg -i ./server/http-server.deb
         
     - name: Test server
-      run: libhv-http
+      run: libhv-http --help
