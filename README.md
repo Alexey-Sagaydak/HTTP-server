@@ -54,42 +54,12 @@
    sudo docker compose up --build -d
    ```
 
-5. Подключитесь к контейнеру с PostgreSQL
-   ```bash
-   sudo docker compose exec db psql -U myuser -d usersdb
-   ```
-
-6. Создайте таблицу `users` при первом запуске (при последующих запусках внесенные изменения сохранятся):
-   ```sql
-   CREATE TABLE users (
-      userId UUID PRIMARY KEY,
-      username VARCHAR(50) NOT NULL,
-      password VARCHAR(64) NOT NULL,
-      isAdmin BOOLEAN NOT NULL
-   );
-   ```
-
-   Чтобы убедиться, что таблица создана, выполните команду `\d users`:
-   ```
-   usersdb=# \d users
-                        Table "public.users"
-   Column   |         Type          | Collation | Nullable | Default 
-   ----------+-----------------------+-----------+----------+---------
-   userid   | uuid                  |           | not null | 
-   username | character varying(50) |           | not null | 
-   password | character varying(64) |           | not null | 
-   isadmin  | boolean               |           | not null | 
-   Indexes:
-      "users_pkey" PRIMARY KEY, btree (userid)
-      "users_username_key" UNIQUE CONSTRAINT, btree (username)
-   ```
-
-7. Проверим работу сервера, запустив клиента из соответствующей папки build:
+5. Проверим работу сервера, запустив клиента из соответствующей папки build:
    ```bash
    ./libhv-client
    ```
 
-8. Для завершения работы сервера введите команду:
+6. Для завершения работы сервера введите команду:
    ```bash
    sudo docker compose down
    ```
