@@ -5,29 +5,26 @@
 #include <sstream>
 #include <boost/algorithm/string.hpp>
 #include "Routers.hpp"
+#include "HashUtils.hpp"
+#include "Database.hpp"
 
 std::mutex usersMutex;
 
-void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::string, User> &users)
-{
-    router.POST("/user", [&users](HttpRequest *req, HttpResponse *resp)
-    {
+void route::RegisterResources(hv::HttpService &router, Database &database) {
+    // POST /user - добавление нового пользователя
+    router.POST("/user", [&database](HttpRequest *req, HttpResponse *resp) {
         std::lock_guard<std::mutex> lock(usersMutex);
-
-        nlohmann::json request;
-        nlohmann::json response;
-        HashUtils hashUtils;
+        nlohmann::json request, response;
         User newUser;
+        HashUtils hashUtils;
 
-        try
-        {
+        try {
+            std::cout << req->body;
             request = nlohmann::json::parse(req->body);
             newUser.username = request["username"];
             hashUtils.computeHash(request["password"], newUser.password);
             newUser.isAdmin = request["isAdmin"];
-        }
-        catch(const std::exception& e)
-        {
+        } catch (const std::exception&) {
             response["error"] = "Invalid JSON";
             resp->SetBody(response.dump());
             resp->content_type = APPLICATION_JSON;
@@ -37,167 +34,159 @@ void route::RegisterResources(hv::HttpService &router, std::unordered_map<std::s
         boost::uuids::uuid uuid = boost::uuids::random_generator()();
         newUser.userId = boost::uuids::to_string(uuid);
 
-        // Добавляем пользователя в список
-        users[newUser.userId] = newUser;
-
-        response["userId"] = newUser.userId;
-        response["username"] = newUser.username;
-        response["password"] = newUser.password;
-        response["isAdmin"] = newUser.isAdmin;
-        response["msg"] = "User added successfully";
-        resp->SetBody(response.dump());
-        resp->content_type = APPLICATION_JSON;
-
-        return 200;
+        if (database.addUser(newUser)) {
+            response["userId"] = newUser.userId;
+            response["username"] = newUser.username;
+            response["password"] = newUser.password;
+            response["isAdmin"] = newUser.isAdmin;
+            response["msg"] = "User added successfully";
+            resp->SetBody(response.dump());
+            resp->content_type = APPLICATION_JSON;
+            return 200;
+        } else {
+            response["error"] = "Failed to add user";
+            resp->SetBody(response.dump());
+            resp->content_type = APPLICATION_JSON;
+            return 500;
+        }
     });
 
-    router.GET("/user/{userId}", [&users](HttpRequest *req, HttpResponse *resp)
-    {
+    // GET /user/{userId} - получение пользователя по ID
+    router.GET("/user/{userId}", [&database](HttpRequest *req, HttpResponse *resp) {
         std::lock_guard<std::mutex> lock(usersMutex);
-        
+        nlohmann::json response;
         std::string userId = req->query_params["userId"];
+        User user;
 
-        // Проверяем, есть ли такой пользователь в списке
-        auto it = users.find(userId);
-        if (it != users.end())
-        {
+        if (database.getUser(userId, user)) {
             nlohmann::json response;
-            response["userId"] = it->second.userId;
-            response["username"] = it->second.username;
-            response["password"] = it->second.password;
-            response["isAdmin"] = it->second.isAdmin;
+            response["userId"] = user.userId;
+            response["username"] = user.username;
+            response["password"] = user.password;
+            response["isAdmin"] = user.isAdmin;
 
             resp->SetBody(response.dump());
             resp->content_type = APPLICATION_JSON;
 
             return 200;
-        }
-        else
-        {
-            resp->SetBody("User not found");
-            resp->status_code = http_status::HTTP_STATUS_NOT_FOUND;
-            resp->content_type = TEXT_PLAIN;
-
+        } else {
+            response["error"] = "User not found";
+            resp->SetBody(response.dump());
+            resp->content_type = APPLICATION_JSON;
             return 404;
         }
     });
 
-    router.GET("/users", [&users](HttpRequest *req, HttpResponse *resp)
-    {
+    // GET /users - получение всех пользователей
+    router.GET("/users", [&database](HttpRequest *req, HttpResponse *resp) {
         std::lock_guard<std::mutex> lock(usersMutex);
-        
         nlohmann::json response;
-        for (const auto &user : users)
-        {
-            nlohmann::json userData;
-            userData["userId"] = user.second.userId;
-            userData["username"] = user.second.username;
-            userData["password"] = user.second.password;
-            userData["isAdmin"] = user.second.isAdmin;
+        std::vector<User> users = database.getAllUsers();
 
-            response[user.first] = userData;
+        for (const auto &user : users) {
+            nlohmann::json userData;
+            userData["userId"] = user.userId;
+            userData["username"] = user.username;
+            userData["password"] = user.password;
+            userData["isAdmin"] = user.isAdmin;
+
+            response[user.userId] = userData;
         }
 
         resp->SetBody(response.dump());
         resp->content_type = APPLICATION_JSON;
-
         return 200;
     });
 
-    router.Delete("/user/{userId}", [&users](HttpRequest *req, HttpResponse *resp)
-    {
+    // DELETE /user/{userId} - удаление пользователя по ID
+    router.Delete("/user/{userId}", [&database](HttpRequest *req, HttpResponse *resp) {
         std::lock_guard<std::mutex> lock(usersMutex);
-        bool isAuth;
+        nlohmann::json response;
         std::string userId = req->query_params["userId"];
-
+        bool isAuth;
         User currentUser;
-        authenticate(req, resp, users, &isAuth, &currentUser);
+
+        authenticate(req, resp, database, &isAuth, &currentUser);
 
         if (!isAuth) {
             resp->status_code = http_status::HTTP_STATUS_UNAUTHORIZED;
-            resp->SetBody("User is not authorized");
+            response["error"] = "User is not authorized";
+            resp->SetBody(response.dump());
             return 401;
         }
 
-        if (!currentUser.isAdmin && currentUser.userId != userId){
+        if (!currentUser.isAdmin && currentUser.userId != userId) {
             resp->status_code = http_status::HTTP_STATUS_FORBIDDEN;
+            response["error"] = "Forbidden action";
+            resp->SetBody(response.dump());
             return 403;
         }
 
-        // Проверяем, есть ли такой пользователь в списке
-        auto it = users.find(userId);
-        if (it != users.end())
-        {
-            users.erase(it);
-
-            resp->SetBody("Done");
-            resp->content_type = TEXT_PLAIN;
-            resp->status_code = http_status::HTTP_STATUS_OK;
-
+        if (database.deleteUser(userId)) {
+            response["msg"] = "User deleted successfully";
+            resp->SetBody(response.dump());
             return 200;
-        }
-        else
-        {
-            resp->SetBody("User not found");
-            resp->content_type = TEXT_PLAIN;
-            resp->status_code = http_status::HTTP_STATUS_NOT_FOUND;
-
+        } else {
+            response["error"] = "User not found";
+            resp->SetBody(response.dump());
             return 404;
         }
     });
 
-    router.PUT("/user/{userId}", [&users](HttpRequest *req, HttpResponse *resp)
-    {
+    // PUT /user/{userId} - обновление данных пользователя по ID
+    router.PUT("/user/{userId}", [&database](HttpRequest *req, HttpResponse *resp) {
         std::lock_guard<std::mutex> lock(usersMutex);
+        nlohmann::json response, requestData;
         HashUtils hashUtils;
-
-        bool isAuth;
-        std::string userId = req->query_params["userId"];
         std::string hashedPassword;
+        std::string userId = req->query_params["userId"];
+        bool isAuth;
+        User currentUser, updatedUser;
 
-        User currentUser;
-        authenticate(req, resp, users, &isAuth, &currentUser);
+        authenticate(req, resp, database, &isAuth, &currentUser);
 
         if (!isAuth) {
             resp->status_code = http_status::HTTP_STATUS_UNAUTHORIZED;
-            resp->SetBody("User is not authorized");
+            response["error"] = "User is not authorized";
+            resp->SetBody(response.dump());
             return 401;
         }
 
-        if (!currentUser.isAdmin && currentUser.userId != userId){
+        if (!currentUser.isAdmin && currentUser.userId != userId) {
             resp->status_code = http_status::HTTP_STATUS_FORBIDDEN;
+            response["error"] = "Forbidden action";
+            resp->SetBody(response.dump());
             return 403;
         }
 
-        // Проверяем, существует ли пользователь с данным ID
-        auto it = users.find(userId);
-        if (it != users.end())
-        {
-            // Заменяем данные пользователя новыми данными из запроса
-            nlohmann::json requestData = nlohmann::json::parse(req->body);
-            it->second.username = requestData["username"];
-            hashUtils.computeHash(requestData["password"], hashedPassword);
-            it->second.password = hashedPassword;
-            it->second.isAdmin = requestData["isAdmin"];
+        try {
+            requestData = nlohmann::json::parse(req->body);
+            updatedUser = currentUser;
+            updatedUser.username = requestData["username"];
+            hashUtils.computeHash(requestData["password"], updatedUser.password);
+            updatedUser.isAdmin = requestData["isAdmin"];
+            updatedUser.userId = userId;
+        } catch (const std::exception&) {
+            response["error"] = "Invalid JSON";
+            resp->SetBody(response.dump());
+            return 400;
+        }
 
-            resp->SetBody("User data updated successfully");
-            resp->status_code = http_status::HTTP_STATUS_OK;
-            resp->content_type = TEXT_PLAIN;
-
+        if (database.updateUser(updatedUser)) {
+            response["msg"] = "User data updated successfully";
+            resp->SetBody(response.dump());
             return 200;
+        } else {
+            response["error"] = "Failed to update user data";
+            resp->SetBody(response.dump());
+            return 500;
         }
-        else
-        {
-            resp->SetBody("User not found");
-            resp->status_code = http_status::HTTP_STATUS_NOT_FOUND;
-            resp->content_type = TEXT_PLAIN;
-
-            return 404;
-        }
+        return 404;
     });
 }
 
-void route::authenticate(const HttpRequest* req, HttpResponse* resp, std::unordered_map<std::string, User> &users, bool* isAuth, User* currentUser) {
+// Реализация функции аутентификации пользователя
+void route::authenticate(const HttpRequest* req, HttpResponse* resp, Database &database, bool* isAuth, User* currentUser) {
     HashUtils hashUtils;
     std::string hashedPassword;
     auto authHeader = req->headers.find("Authorization");
@@ -206,7 +195,6 @@ void route::authenticate(const HttpRequest* req, HttpResponse* resp, std::unorde
         resp->status_code = HTTP_STATUS_UNAUTHORIZED;
         resp->SetHeader("WWW-Authenticate", "Basic realm=\"Authentication Required\"");
         resp->SetBody("Unauthorized access");
-        resp->content_type = TEXT_PLAIN;
         *isAuth = false;
         return;
     }
@@ -215,12 +203,11 @@ void route::authenticate(const HttpRequest* req, HttpResponse* resp, std::unorde
     if (!boost::starts_with(authStr, "Basic ")) {
         resp->status_code = HTTP_STATUS_UNAUTHORIZED;
         resp->SetBody("Invalid Authorization header");
-        resp->content_type = TEXT_PLAIN;
         *isAuth = false;
         return;
     }
 
-    authStr = authStr.substr(6); // Remove "Basic " prefix
+    authStr = authStr.substr(6); // Удаление префикса "Basic "
     std::string decoded = base64_decode(authStr);
 
     std::istringstream iss(decoded);
@@ -228,24 +215,19 @@ void route::authenticate(const HttpRequest* req, HttpResponse* resp, std::unorde
     std::getline(iss, username, ':');
     std::getline(iss, password);
 
-    auto userIt = std::find_if(users.begin(), users.end(), [&](const auto& pair) {
-        return pair.second.username == username;
-    });
-
-    hashUtils.computeHash(password, hashedPassword);
-    if (userIt == users.end() || userIt->second.password != hashedPassword) {
+    User user;
+    if (database.getUserByUsername(username, user) && hashUtils.computeHash(password, hashedPassword) && user.password == hashedPassword) {
+        *currentUser = user;
+        *isAuth = true;
+    } else {
         resp->status_code = HTTP_STATUS_UNAUTHORIZED;
         resp->SetHeader("WWW-Authenticate", "Basic realm=\"Authentication Required\"");
         resp->SetBody("Unauthorized access");
-        resp->content_type = TEXT_PLAIN;
         *isAuth = false;
-        return;
     }
-
-    *currentUser = userIt->second;
-    *isAuth = true;
 }
 
+// Реализация функции для декодирования Base64
 std::string route::base64_decode(const std::string& in) {
     std::string out;
     std::vector<int> T(256, -1);

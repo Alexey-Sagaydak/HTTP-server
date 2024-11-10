@@ -4,23 +4,25 @@
 #include "HttpServer.h"
 #include "HttpService.h"
 #include "Routers.hpp"
+#include <memory>
 
-class HttpServer final
-{
+class HttpServer final {
 public:
     using UPtr = std::unique_ptr<HttpServer>;
 
-    HttpServer();
+    explicit HttpServer(const std::string& dbConnInfo);
+    
     HttpServer(const HttpServer &) = delete;
     HttpServer(HttpServer &&) = delete;
-    ~HttpServer();
-
+    
     void Start(int port);
+
+    ~HttpServer();
 
 private:
     std::unique_ptr<hv::HttpServer> _server;
     HttpService _router;
-    std::unordered_map<std::string, User> _users;
+    Database _database;
 };
 
 #endif

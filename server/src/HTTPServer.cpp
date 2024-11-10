@@ -2,10 +2,11 @@
 
 #include <thread>
 
-HttpServer::HttpServer()
+HttpServer::HttpServer(const std::string& dbConnInfo)
+    : _database(dbConnInfo)
 {
     _server = std::make_unique<hv::HttpServer>();
-    route::RegisterResources(_router, _users);
+    route::RegisterResources(_router, _database);
     _server->registerHttpService(&_router);
 }
 

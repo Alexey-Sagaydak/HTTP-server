@@ -3,19 +3,14 @@
 
 #include "HttpService.h"
 #include "HashUtils.hpp"
+#include "Database.hpp"
 #include <unordered_map>
 
-struct User {
-    std::string userId;
-    std::string username;
-    std::string password;
-    bool isAdmin;
-};
+namespace route {
+    void RegisterResources(hv::HttpService &router, Database &database);
 
-namespace route
-{
-    void RegisterResources(hv::HttpService &router, std::unordered_map<std::string, User> &users);
-    void authenticate(const HttpRequest* req, HttpResponse* resp, std::unordered_map<std::string, User> &users, bool* isAuth, User* currentUser);
+    void authenticate(const HttpRequest* req, HttpResponse* resp, Database &database, bool* isAuth, User* currentUser);
+
     std::string base64_decode(const std::string& in);
 }
 
