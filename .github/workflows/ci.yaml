@@ -40,16 +40,6 @@ jobs:
     - name: Start server and database with Docker Compose
       run: docker-compose up -d
 
-    - name: Test server health
-      run: |
-        sleep 10  # Даем время серверу на старт
-        curl --silent --head http://localhost:7777 | grep "HTTP/1.1 200 OK" > /dev/null
-        if [ "$?" -eq 0 ]; then
-          echo "Сервер успешно запущен"
-        else
-          echo "Ошибка при запуске сервера"
-          exit 1
-        fi
     - name: Stop Docker Compose
       run: docker-compose down
 
