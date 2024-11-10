@@ -9,9 +9,15 @@ jobs:
     steps:
     - name: Check out repository code
       uses: actions/checkout@v3
-      
+
     - run: sudo apt-get update
     - run: sudo apt-get install -y g++ make cmake libboost-all-dev libpqxx-dev docker-compose
+
+    # Переопределяем значения переменных окружения для CI/CD
+    - name: Set environment variables
+      run: |
+        echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
+        echo "GITHUB_SHA=${{ github.sha }}" >> .env
     
     - run: |
         cd client && mkdir -p build && cd build && cmake .. && make
