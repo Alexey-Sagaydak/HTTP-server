@@ -13,7 +13,6 @@ jobs:
     - run: sudo apt-get update
     - run: sudo apt-get install -y g++ make cmake libboost-all-dev libpqxx-dev docker-compose
 
-    # Переопределяем значения переменных окружения для CI/CD
     - name: Set environment variables
       run: |
         echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env

@@ -8,7 +8,7 @@ RUN apt-get update && \
         cmake \
         build-essential
 
-COPY ./server/build/libhv-http /usr/local/bin/http-server
+COPY ./build/libhv-http /usr/local/bin/http-server
 
 WORKDIR /usr/local/bin/
 

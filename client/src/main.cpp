@@ -40,16 +40,18 @@ void printMenu();
 void addUser(hv::HttpClient& httpClient);
 void printUser(const std::string& jsonStr);
 void printUser(json jsonData);
+void printWeather(json jsonData);
 void setTextColor(TextColor color);
 void getAllUsersInfo(hv::HttpClient& httpClient);
 void getUserById(hv::HttpClient& httpClient);
 void deleteUserById(hv::HttpClient& httpClient);
 void editUserById(hv::HttpClient& httpClient);
+void getWeather(hv::HttpClient& httpClient);
 std::string getBasicAuthHeader();
 std::string base64_encode(const std::string &input);
 
 int main() {
-    std::string serverAddress = "0.0.0.0:7777";
+    std::string serverAddress = "0.0.0.0:8080";
 
     hv::HttpClient httpClient(serverAddress.c_str());
 
@@ -75,6 +77,9 @@ int main() {
                 editUserById(httpClient);
                 break;
             case 6:
+                getWeather(httpClient);
+                break;
+            case 7:
                 std::cout << "Exiting..." << std::endl;
                 break;
             default:
@@ -83,7 +88,7 @@ int main() {
                 setTextColor(TextColor::WHITE);
                 break;
         }
-    } while (choice != 6);
+    } while (choice != 7);
 
     return 0;
 }
@@ -197,7 +202,8 @@ void printMenu() {
     std::cout << "3. Get user by ID" << std::endl;
     std::cout << "4. Delete user by ID" << std::endl;
     std::cout << "5. Edit user by ID" << std::endl;
-    std::cout << "6. Exit" << std::endl;
+    std::cout << "6. Get weather" << std::endl;
+    std::cout << "7. Exit" << std::endl;
     setTextColor(TextColor::WHITE);
     std::cout << "Enter your choice: ";
 }
@@ -315,6 +321,33 @@ void addUser(hv::HttpClient& httpClient) {
     }
 }
 
+void getWeather(hv::HttpClient& httpClient){
+    HttpRequest req;
+    req.method = HTTP_GET;
+
+    req.url = "/weather";
+
+    HttpResponse resp;
+    int ret = httpClient.send(&req, &resp);
+
+    if (ret != 0) {
+        setTextColor(TextColor::RED);
+        std::cerr << "Failed to get weather. Error: " << http_client_strerror(ret) << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
+
+    try {
+        json responseData = json::parse(resp.body);
+        printWeather(responseData);
+    } catch (const std::exception& e) {
+        setTextColor(TextColor::RED);
+        std::cerr << "Error parsing JSON response: " << e.what() << std::endl;
+        setTextColor(TextColor::WHITE);
+        return;
+    }
+}
+
 void printUser(const std::string& jsonStr) {
     try {
         json jsonData = json::parse(jsonStr);
@@ -334,6 +367,22 @@ void printUser(json jsonData) {
         std::cout << "Username: " << jsonData["username"] << std::endl;
         std::cout << "Password: " << jsonData["password"] << std::endl;
         std::cout << "Is Admin: " << (jsonData["isAdmin"] ? "Yes" : "No") << std::endl;
+
+        setTextColor(TextColor::WHITE);
+    } catch (const std::exception& e) {
+        setTextColor(TextColor::RED);
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+        setTextColor(TextColor::WHITE);
+    }
+}
+
+void printWeather(json jsonData) {
+    try {
+        setTextColor(TextColor::GRAY);
+        
+        std::cout << "Weather in " << jsonData["city"];
+        std::cout << ": " << jsonData["description"];
+        std::cout << ", " << jsonData["temperature"] << " °C\n\n";
 
         setTextColor(TextColor::WHITE);
     } catch (const std::exception& e) {

@@ -12,10 +12,15 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
-  http-server:
-    image: "${DOCKER_USERNAME}/http-server:${GITHUB_SHA}"
+  weather-service:
     build:
-      context: .
+      context: ./weather_service
+    ports:
+      - "5000:5000"
+
+  http-server:
+    build:
+      context: ./server
       dockerfile: Dockerfile
     ports:
       - "7777:7777"
@@ -26,6 +31,16 @@ services:
       DB_NAME: usersdb
     depends_on:
       - db
+      - weather-service
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - http-server
 
 volumes:
   pgdata:

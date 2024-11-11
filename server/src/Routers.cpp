@@ -183,6 +183,28 @@ void route::RegisterResources(hv::HttpService &router, Database &database) {
         }
         return 404;
     });
+
+    router.GET("/weather", [](HttpRequest *req, HttpResponse *resp) {
+        hv::HttpClient weather_client;
+        weather_client.setTimeout(5000);
+
+        HttpRequest weather_request;
+        weather_request.method = HTTP_GET;
+        weather_request.url = "http://weather-service:5000/weather";
+
+        HttpResponse res;
+        int ret = weather_client.send(&weather_request, &res);
+
+        if (ret == 0 && res.status_code == 200) {
+            resp->SetBody(res.body);
+            resp->content_type = APPLICATION_JSON;
+            return 200;
+        } else {
+            resp->SetBody("Error: can't get weather info.");
+            resp->content_type = TEXT_PLAIN;
+            return 500;
+        }
+    });
 }
 
 // Реализация функции аутентификации пользователя

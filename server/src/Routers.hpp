@@ -2,6 +2,7 @@
 #define _ROUTERS_HPP_
 
 #include "HttpService.h"
+#include "HttpClient.h"
 #include "HashUtils.hpp"
 #include "Database.hpp"
 #include <unordered_map>
