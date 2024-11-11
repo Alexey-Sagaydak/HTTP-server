@@ -40,7 +40,7 @@ jobs:
     - name: Test 1. Install client
       run: sudo dpkg -i ./client/http-client.deb
     - name: Test 2. Test client
-      run: echo "6" | libhv-client
+      run: echo "7" | libhv-client
 
     - name: Start server and database with Docker Compose
       run: docker-compose up -d
